@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.10)
+project(VulkanProject)
+
+set(CMAKE_CXX_STANDARD 17)
+
+# Trouver le Vulkan SDK
+find_package(Vulkan REQUIRED)
+
+
+# Inclure GLFW
+set(GLFW_DIR "C:/CXXLib/glfw-3.4")  # Remplace "path_to_glfw" par le chemin vers GLFW
+add_subdirectory(${GLFW_DIR} ${CMAKE_BINARY_DIR}/glfw)
+
+# Inclure GLM
+set(GLM_DIR "C:/CXXLib/glm-master/glm")  # Remplace "path_to_glm" par le chemin vers GLM
+include_directories(${GLM_DIR})
+
+add_executable(${PROJECT_NAME} main.cpp)
+
+# Lier les bibliothèques
+target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw)

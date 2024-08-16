@@ -1,0 +1,20 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "default",
+            "description": "default Setting for my cmake project",
+            "hidden": false,
+            "generator": "MinGW Makefiles",
+            "binaryDir": "${workspaceFolder}/build",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "gcc.exe",
+                "CMAKE_CXX_COMPILER":"g++.exe",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "YES"
+            }
+
+
+        }
+    ]
+}
