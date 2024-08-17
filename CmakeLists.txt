@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(VulkanProject)
+add_executable(${PROJECT_NAME} main.cpp)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -7,15 +8,42 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(Vulkan REQUIRED)
 
 
-# Inclure GLFW
-set(GLFW_DIR "C:/CXXLib/glfw-3.4")  # Remplace "path_to_glfw" par le chemin vers GLFW
-add_subdirectory(${GLFW_DIR} ${CMAKE_BINARY_DIR}/glfw)
+#             DOWNLOAD ALL SUBMODULES
 
-# Inclure GLM
-set(GLM_DIR "C:/CXXLib/glm-master/glm")  # Remplace "path_to_glm" par le chemin vers GLM
-include_directories(${GLM_DIR})
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+#update submodules as needed
+    option(GIT_SUBMODULE "check submodule during build" ON)
+    if(GIT_SUBMODULE)
+        message(STATUS "submodule update")
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+            message(FATAL_ERROR "git submodule update --init --recursive failed zith ${GIT_SUBMOD_RESULT}, please check")
+        endif()
+    endif()
+endif()
 
-add_executable(${PROJECT_NAME} main.cpp)
+# CHECK ALL SUBMODULES
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/glfw/CMakeLists.txt")
+    message(FATAL_ERROR "The glfw submodule was not downloaded!  GIT_SUBMODULE was turn off or failed")
+endif()
+
+add_subdirectory(external/glfw)
+add_subdirectory(external/glm)
+target_include_directories(${PROJECT_NAME} 
+    PUBLIC external/glfw/include
+    PUBLIC external/glm
+)
+
+target_link_directories(${PROJECT_NAME}
+    PRIVATE external/glfw/src/Debug
+    PRIVATE external/glm
+)
+
+
+
 
 # Lier les bibliothèques
-target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw)
+target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw glm)
