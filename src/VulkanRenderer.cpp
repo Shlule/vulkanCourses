@@ -126,6 +126,7 @@ vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data
 }
 
 void VulkanRenderer::clean(){
+    vkDestroyDevice(mainDevice.logicalDevice, nullptr);
     vkDestroyInstance(instance, nullptr);
 }
 
@@ -185,4 +186,44 @@ QueueFamilyIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice deviceP){
         ++i;
     }
     return indices;
+}
+
+void VulkanRenderer::createLogicalDevice(){
+    QueueFamilyIndices indices = getQueueFamilies(mainDevice.physicalDevice);
+
+    //queues the logical device needs to create and info to do so
+    // one queue for now
+    VkDeviceQueueCreateInfo queueCreateInfo {};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;
+    queueCreateInfo.queueCount = 1;
+    float priority = 1.0f;
+
+    //Vulkan needs to know how to handle multiple queues. it uses priorities.
+    // 1 is the hightest priority
+    queueCreateInfo.pQueuePriorities = &priority;
+
+    // logical device creation
+    VkDeviceCreateInfo deviceCreateInfo {};
+    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+    //queue info
+    deviceCreateInfo.queueCreateInfoCount =1;
+    deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+
+    //Extension info
+    deviceCreateInfo.enabledExtensionCount =0;
+    deviceCreateInfo.ppEnabledExtensionNames = nullptr;
+
+    //--Validation layer are deprecated since Vulkan 1.1
+    //features
+    VkPhysicalDeviceFeatures deviceFeatures{};
+    deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+
+    // Create the logical device for the given physical device
+    VkResult result = vkCreateDevice(mainDevice.physicalDevice, &deviceCreateInfo, nullptr, &mainDevice.logicalDevice);
+    if(result != VK_SUCCESS){
+        throw std::runtime_error("Could not create the logical device");
+    }
+
 }

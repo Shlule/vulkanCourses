@@ -33,6 +33,8 @@ private:
         VkPhysicalDevice physicalDevice;
         VkDevice logicalDevice;
     } mainDevice;
+
+    void createLogicalDevice();
     
 
 };
