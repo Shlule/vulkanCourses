@@ -21,7 +21,7 @@ void initWindow(string wName = "Vulkan", const int width = 800, const int height
 }
 void clean()
 {
-
+    vulkanRenderer.clean();
     glfwDestroyWindow(window);
     glfwTerminate();
 
