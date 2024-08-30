@@ -32,18 +32,22 @@ endif()
 
 add_subdirectory(external/glfw)
 add_subdirectory(external/glm)
+add_subdirectory(src)
+
 target_include_directories(${PROJECT_NAME} 
     PUBLIC external/glfw/include
     PUBLIC external/glm
+    PUBLIC src
 )
 
 target_link_directories(${PROJECT_NAME}
     PRIVATE external/glfw/src/Debug
     PRIVATE external/glm
+    PRIVATE src
 )
 
 
 
 
 # Lier les bibliothèques
-target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw glm)
+target_link_libraries(${PROJECT_NAME} Vulkan::Vulkan glfw glm engine)

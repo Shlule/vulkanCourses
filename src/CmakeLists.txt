@@ -1,0 +1,18 @@
+# Lister explicitement les fichiers source
+set(engine_SOURCES
+    VulkanRenderer.cpp
+)
+
+
+# Créer la bibliothèque 'engine'
+add_library(engine ${engine_SOURCES})
+
+# Ajouter le répertoire courant aux chemins d'inclusion
+target_include_directories(engine 
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+    PUBLIC ${CMAKE_SOURCE_DIR}/external/glfw/include
+    PUBLIC ${CMAKE_SOURCE_DIR}/external/glm
+    PUBLIC ${Vulkan_INCLUDE_DIRS}
+    )
+
+target_link_libraries(engine Vulkan::Vulkan glfw glm)

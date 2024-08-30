@@ -1,32 +1,43 @@
-#include <iostream>
+#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <stdexcept>
+#include <vector>
 
-int main(){
-    std::cout << "hey, Zues\n";
+#include <string>
+using std::string;
+#include "VulkanRenderer.h"
 
-    GLFWwindow *window;
+GLFWwindow* window = nullptr;
+VulkanRenderer vulkanRenderer;
 
-    if (!glfwInit()){
-        fprintf(stderr, "failed to initialize GLFW\n");
-        exit(EXIT_FAILURE);
-    }
+void initWindow(string wName = "Vulkan", const int width = 800, const int height = 600)
+{
 
-    window = glfwCreateWindow(300,300, "Gears", NULL, NULL);
-    if(!window){
-        fprintf(stderr, "failed to open GLFW window\n");
-        glfwTerminate();
-        exit(EXIT_FAILURE);
-    }
+    // Initialize GLFW
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Glfw won't work with opengl
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    window = glfwCreateWindow(width, height, wName.c_str(), nullptr, nullptr);
+}
+void clean()
+{
 
-    while (!glfwWindowShouldClose(window)){
-        // draw();
+    glfwDestroyWindow(window);
+    glfwTerminate();
 
-        // animate();
+}
+int main()
+{
 
-        glfwSwapBuffers(window);
+    initWindow();
+    // if(vulkanRenderer.init(window) == EXIT_FAILURE) return EXIT_FAILURE;
+    while (!glfwWindowShouldClose(window))
+    {
+
         glfwPollEvents();
 
     }
-    glfwTerminate();
+    clean();
+    return 0;
 
 }
