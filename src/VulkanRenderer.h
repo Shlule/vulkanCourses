@@ -10,6 +10,14 @@ class VulkanRenderer
 {
 public:
 
+#ifdef NDEBUG
+    static const bool enableValidationLayers = false;
+#else
+    static const bool enableValidationLayers = true;
+#endif
+
+    static const std::vector<const char*> validationLayers
+
     VulkanRenderer();
     ~VulkanRenderer();
     int init(GLFWwindow* windowP);
@@ -37,6 +45,8 @@ private:
     void createLogicalDevice();
 
     VkQueue graphicsQueue;
+
+    bool checkValidationLayerSupport();
     
 
 };
