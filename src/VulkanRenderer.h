@@ -35,6 +35,8 @@ private:
     } mainDevice;
 
     void createLogicalDevice();
+
+    VkQueue graphicsQueue;
     
 
 };
