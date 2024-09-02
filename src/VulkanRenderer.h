@@ -16,7 +16,7 @@ public:
     static const bool enableValidationLayers = true;
 #endif
 
-    static const std::vector<const char*> validationLayers
+    static const std::vector<const char*> validationLayers;
 
     VulkanRenderer();
     ~VulkanRenderer();
@@ -47,6 +47,20 @@ private:
     VkQueue graphicsQueue;
 
     bool checkValidationLayerSupport();
-    
 
+    std::vector<const char*> getRequiredExtensions();
+
+    VkDebugUtilsMessengerEXT debugMessenger;
+
+    VkResult createDebugUtilsMessengerEXT(VkInstance instanceP, 
+    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
+
+    void destroyDebugUtilsMessengerEXT(VkInstance instance,
+    VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
+
+    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+
+    void setupDebugMessenger();
+    
 };
