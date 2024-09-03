@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <stdexcept>
 #include <vector>
+#include <set>
 #include "VulkanUtilities.h"
 
 
@@ -62,5 +63,12 @@ private:
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 
     void setupDebugMessenger();
+
+    VkSurfaceKHR surface;
+    VkQueue presentationQueue;
+
+    void createSurface();
+ 
+    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
     
 };

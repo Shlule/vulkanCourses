@@ -17,7 +17,9 @@ int VulkanRenderer::init(GLFWwindow* windowP)
 
         createInstance();
         setupDebugMessenger();
+        createSurface();
         pickPhysicalDevice();
+        createLogicalDevice();
 
     }
     catch (const std::runtime_error& e)
@@ -144,6 +146,7 @@ vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data
 }
 
 void VulkanRenderer::clean(){
+    vkDestroySurfaceKHR(instance, surface, nullptr);
 
     if (enableValidationLayers) {
 
@@ -188,7 +191,8 @@ bool VulkanRenderer::isDeviceSuitable(VkPhysicalDevice deviceP){
 
     //for now we do nothing with this info
     QueueFamilyIndices indices = getQueueFamilies(deviceP);
-    return indices.isValid();
+    bool extensionSupported = checkDeviceExtensionSupport(deviceP);
+    return indices.isValid() && extensionSupported;
 
 }
 
@@ -206,6 +210,15 @@ QueueFamilyIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice deviceP){
         if(queueFamily.queueCount >0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT){
             indices.graphicsFamily = i;
         }
+
+        // check if queue family support presentation
+        VkBool32 presentationSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(deviceP, i, surface, &presentationSupport);
+
+        if(queueFamily.queueCount >0 && presentationSupport){
+            indices.presentationFamily = i;
+        }
+
         if(indices.isValid()) break;
         ++i;
     }
@@ -215,43 +228,51 @@ QueueFamilyIndices VulkanRenderer::getQueueFamilies(VkPhysicalDevice deviceP){
 void VulkanRenderer::createLogicalDevice(){
     QueueFamilyIndices indices = getQueueFamilies(mainDevice.physicalDevice);
 
-    //queues the logical device needs to create and info to do so
-    // one queue for now
-    VkDeviceQueueCreateInfo queueCreateInfo {};
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;
-    queueCreateInfo.queueCount = 1;
-    float priority = 1.0f;
+    //Vector for queue creation information and set for family indices
+    //A set will only keep one indice if theuy are the same.
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<int> queueFamilyIndices = {indices.graphicsFamily, indices.presentationFamily };
 
-    //Vulkan needs to know how to handle multiple queues. it uses priorities.
-    // 1 is the hightest priority
-    queueCreateInfo.pQueuePriorities = &priority;
+    // queues the logical device needs to create and info to do so.
+    for (int queueFamilyIndex : queueFamilyIndices){
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+        queueCreateInfo.queueCount = 1;
+        float priority = 1.0f;
+        // Vulkan needs to know how to handle multiple queues. It uses priorities.
+        // 1 is the hightest priority
+        queueCreateInfo.pQueuePriorities = &priority;
 
-    // logical device creation
-    VkDeviceCreateInfo deviceCreateInfo {};
+        queueCreateInfos.push_back(queueCreateInfo);
+        
+    }
+    // Logical device creation
+    VkDeviceCreateInfo deviceCreateInfo{};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
-    //queue info
-    deviceCreateInfo.queueCreateInfoCount =1;
-    deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
-
-    //Extension info
-    deviceCreateInfo.enabledExtensionCount =0;
-    deviceCreateInfo.ppEnabledExtensionNames = nullptr;
-
-    //--Validation layer are deprecated since Vulkan 1.1
-    //features
+    //queue Infos 
+    deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
+    // Extensions info
+    // Device extensions, different from instance extensions
+    deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+    deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+    // -- Validation layers are deprecated since 1.1
+    // Features
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
 
     // Create the logical device for the given physical device
     VkResult result = vkCreateDevice(mainDevice.physicalDevice, &deviceCreateInfo, nullptr, &mainDevice.logicalDevice);
     if(result != VK_SUCCESS){
-        throw std::runtime_error("Could not create the logical device");
+        throw std::runtime_error("Could not create the logical device.");
+
     }
 
-    // Ensure access to queues
+    //Ensure access to queues
     vkGetDeviceQueue(mainDevice.logicalDevice, indices.graphicsFamily, 0, &graphicsQueue);
+    vkGetDeviceQueue(mainDevice.logicalDevice, indices.presentationFamily, 0, &presentationQueue);
+
 
 }
 
@@ -363,3 +384,48 @@ void VulkanRenderer::setupDebugMessenger()
     }
 
 }
+
+void VulkanRenderer::createSurface(){
+    //Create a surface relatively ro our window
+    VkResult result = glfwCreateWindowSurface(instance, window, nullptr, &surface);
+    if( result != VK_SUCCESS){
+        throw std::runtime_error("failed to create a vulkan surface.");
+    }
+}
+
+bool VulkanRenderer::checkDeviceExtensionSupport(VkPhysicalDevice device)
+{
+
+    uint32_t extensionCount = 0;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+    if (extensionCount == 0)
+    {
+
+        return false;
+
+    }
+    std::vector<VkExtensionProperties> extensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensions.data());
+    for (const auto& deviceExtension : deviceExtensions)
+    {
+
+        bool hasExtension = false;
+        for (const auto& extension : extensions)
+        {
+
+            if (strcmp(deviceExtension, extension.extensionName) == 0)
+            {
+
+                hasExtension = true;
+                break;
+
+            }
+
+        }
+        if (!hasExtension) return false;
+
+    }
+
+    return true;
+}
+
