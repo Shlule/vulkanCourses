@@ -20,6 +20,7 @@ int VulkanRenderer::init(GLFWwindow* windowP)
         createSurface();
         pickPhysicalDevice();
         createLogicalDevice();
+        createSwapChain();
 
     }
     catch (const std::runtime_error& e)
@@ -146,6 +147,7 @@ vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data
 }
 
 void VulkanRenderer::clean(){
+    vkDestroySwapchainKHR(mainDevice.logicalDevice, swapChain, nullptr);
     vkDestroySurfaceKHR(instance, surface, nullptr);
 
     if (enableValidationLayers) {
@@ -189,10 +191,17 @@ bool VulkanRenderer::isDeviceSuitable(VkPhysicalDevice deviceP){
     VkPhysicalDeviceFeatures deviceFeatures{};
     vkGetPhysicalDeviceFeatures(deviceP, &deviceFeatures);
 
-    //for now we do nothing with this info
     QueueFamilyIndices indices = getQueueFamilies(deviceP);
     bool extensionSupported = checkDeviceExtensionSupport(deviceP);
-    return indices.isValid() && extensionSupported;
+    bool swapchainValid = false;
+    if (extensionSupported)
+    {
+
+        SwapchainDetails swapchainDetails = getSwapchainDetails(deviceP);
+        swapchainValid = !swapchainDetails.presentationModes.empty() && !swapchainDetails.formats.empty();
+
+    }
+    return indices.isValid() && extensionSupported && swapchainValid;
 
 }
 
@@ -429,3 +438,186 @@ bool VulkanRenderer::checkDeviceExtensionSupport(VkPhysicalDevice device)
     return true;
 }
 
+SwapchainDetails VulkanRenderer::getSwapchainDetails(VkPhysicalDevice deviceP)
+{
+
+    SwapchainDetails swapchainDetails;
+    // Capabilities
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(deviceP, surface, &swapchainDetails.surfaceCapabilities);
+    // Formats
+    uint32_t formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(deviceP, surface, &formatCount, nullptr);
+    if (formatCount != 0)
+    {
+
+        swapchainDetails.formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(deviceP, surface, &formatCount, swapchainDetails.formats.data());
+    }
+    // Presentation modes
+    uint32_t presentationCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(deviceP, surface, &presentationCount, nullptr);
+    if (presentationCount != 0)
+    {
+
+        swapchainDetails.presentationModes.resize(presentationCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(deviceP, surface,
+        &presentationCount, swapchainDetails.presentationModes.data());
+
+    }
+    return swapchainDetails;
+
+}
+
+
+void VulkanRenderer::createSwapChain(){
+    // we will pick best settings for the swapchain
+    SwapchainDetails swapchainDetails = getSwapchainDetails(mainDevice.physicalDevice);
+    VkSurfaceFormatKHR surfaceFormat = chooseBestSurfaceFormat(swapchainDetails.formats);
+    VkPresentModeKHR presentationMode = chooseBestPresentationMode(swapchainDetails.presentationModes);
+    VkExtent2D extent = chooseSwapExtent(swapchainDetails.surfaceCapabilities);
+
+    // Setup the swapchain info
+    VkSwapchainCreateInfoKHR swapchainCreateInfo {};
+    swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchainCreateInfo.surface = surface;
+    swapchainCreateInfo.imageFormat = surfaceFormat.format;
+    swapchainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
+    swapchainCreateInfo.presentMode = presentationMode;
+    swapchainCreateInfo.imageExtent = extent;
+    // Minimal number of image in our swapchain.
+    // We will use one more than the minimum to enable triple-buffering.
+    uint32_t imageCount = swapchainDetails.surfaceCapabilities.minImageCount + 1;
+    if (swapchainDetails.surfaceCapabilities.maxImageCount > 0 // Not limitless
+    && swapchainDetails.surfaceCapabilities.maxImageCount < imageCount)
+
+    {
+
+    imageCount = swapchainDetails.surfaceCapabilities.maxImageCount;
+
+    }
+    swapchainCreateInfo.minImageCount = imageCount;
+    // Number of layers for each image in swapchain
+    swapchainCreateInfo.imageArrayLayers = 1;
+    // What attachment go with the image (e.g. depth, stencil...). Here, just color.
+    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    // Transform to perform on swapchain images
+    swapchainCreateInfo.preTransform = swapchainDetails.surfaceCapabilities.currentTransform;
+    // Handles blending with other windows. Here we don't blend.
+    swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    // Whether to clip parts of the image not in view (e.g. when an other window overlaps)
+    swapchainCreateInfo.clipped = VK_TRUE;
+    // Queue management
+    QueueFamilyIndices indices = getQueueFamilies(mainDevice.physicalDevice);
+    // If graphics and presentation families are different, share images between them
+    if (indices.graphicsFamily != indices.presentationFamily)
+    {
+
+        uint32_t queueFamilyIndices[] { (uint32_t)indices.graphicsFamily, (uint32_t)indices.presentationFamily };
+        swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swapchainCreateInfo.queueFamilyIndexCount = 2;
+        swapchainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+
+    }
+    else
+    {
+
+        swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapchainCreateInfo.queueFamilyIndexCount = 0;
+        swapchainCreateInfo.pQueueFamilyIndices = nullptr;
+
+    }
+    // When you want to pass old swapchain responsibilities when destroying it,
+    // e.g. when you want to resize window, use this
+    swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+    // Create swapchain
+    VkResult result = vkCreateSwapchainKHR(mainDevice.logicalDevice, &swapchainCreateInfo, nullptr, &swapChain);
+    if (result != VK_SUCCESS)
+    {
+
+        throw std::runtime_error("Failed to create swapchain");
+    }
+
+}
+
+
+
+
+
+VkSurfaceFormatKHR VulkanRenderer::chooseBestSurfaceFormat(const vector<VkSurfaceFormatKHR>& formats)
+{
+
+    // We will use RGBA 32bits normalized and SRGG non linear colorspace
+    if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
+    {
+
+        // All formats available by convention
+        return { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
+
+    }
+    for (auto& format : formats)
+    {
+
+        if (format.format == VK_FORMAT_R8G8B8A8_UNORM && format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {   
+
+        return format;
+
+        }
+
+    }
+    // Return first format if we have not our chosen format
+    return formats[0];
+
+}
+VkPresentModeKHR VulkanRenderer::chooseBestPresentationMode(const vector<VkPresentModeKHR>& presentationModes)
+{
+
+// We will use mail box presentation mode
+    for (const auto& presentationMode : presentationModes)
+    {
+
+        if (presentationMode == VK_PRESENT_MODE_MAILBOX_KHR)
+        {
+
+            return presentationMode;
+
+        }
+
+    }
+    // Part of the Vulkan spec, so have to be available
+    return VK_PRESENT_MODE_FIFO_KHR;
+
+}
+VkExtent2D VulkanRenderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& surfaceCapabilities)
+{
+
+    // Rigid extents
+    if (surfaceCapabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
+
+        return surfaceCapabilities.currentExtent;
+
+    }
+    // Extents can vary
+    else
+    {
+
+        // Create new extent using window size
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+        VkExtent2D newExtent {};
+        newExtent.width = static_cast<uint32_t>(width);
+        newExtent.height = static_cast<uint32_t>(height);
+        // Sarface also defines max and min, so make sure we are within boundaries
+        newExtent.width = std::max(surfaceCapabilities.minImageExtent.width,
+
+        std::min(surfaceCapabilities.maxImageExtent.width, newExtent.width));
+        newExtent.height = std::max(surfaceCapabilities.minImageExtent.height,
+
+        std::min(surfaceCapabilities.maxImageExtent.height, newExtent.height));
+
+        return newExtent;
+
+    }
+
+}

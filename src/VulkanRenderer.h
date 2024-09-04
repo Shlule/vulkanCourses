@@ -70,5 +70,15 @@ private:
     void createSurface();
  
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+
+    VkSwapchainKHR swapChain;
+
+    SwapchainDetails getSwapchainDetails(VkPhysicalDevice device);
+
+    VkSurfaceFormatKHR chooseBestSurfaceFormat(const vector<VkSurfaceFormatKHR>& formats);
+    VkPresentModeKHR chooseBestPresentationMode(const vector<VkPresentModeKHR>& presentationModes);
+    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& surfaceCapabilities);
+    void createSwapChain();
+    
     
 };
