@@ -147,6 +147,12 @@ vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data
 }
 
 void VulkanRenderer::clean(){
+
+    for (auto image : swapchainImages)
+    {
+
+        vkDestroyImageView(mainDevice.logicalDevice, image.imageView, nullptr);
+    }
     vkDestroySwapchainKHR(mainDevice.logicalDevice, swapChain, nullptr);
     vkDestroySurfaceKHR(instance, surface, nullptr);
 
@@ -173,7 +179,7 @@ void VulkanRenderer::pickPhysicalDevice(){
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices( instance, &deviceCount, devices.data());
 
-    // getdevcie valid for what we want to do
+    // get device valid for what we want to do
     for(const auto& device : devices){
         if(isDeviceSuitable(device)){
             mainDevice.physicalDevice = device;
@@ -402,11 +408,11 @@ void VulkanRenderer::createSurface(){
     }
 }
 
-bool VulkanRenderer::checkDeviceExtensionSupport(VkPhysicalDevice device)
+bool VulkanRenderer::checkDeviceExtensionSupport(VkPhysicalDevice deviceP)
 {
 
     uint32_t extensionCount = 0;
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+    vkEnumerateDeviceExtensionProperties(deviceP, nullptr, &extensionCount, nullptr);
     if (extensionCount == 0)
     {
 
@@ -414,7 +420,7 @@ bool VulkanRenderer::checkDeviceExtensionSupport(VkPhysicalDevice device)
 
     }
     std::vector<VkExtensionProperties> extensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensions.data());
+    vkEnumerateDeviceExtensionProperties(deviceP, nullptr, &extensionCount, extensions.data());
     for (const auto& deviceExtension : deviceExtensions)
     {
 
@@ -520,7 +526,6 @@ void VulkanRenderer::createSwapChain(){
     }
     else
     {
-
         swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         swapchainCreateInfo.queueFamilyIndexCount = 0;
         swapchainCreateInfo.pQueueFamilyIndices = nullptr;
@@ -537,16 +542,32 @@ void VulkanRenderer::createSwapChain(){
         throw std::runtime_error("Failed to create swapchain");
     }
 
+    swapchainImageFormat = surfaceFormat.format;
+    swapchainExtent = extent;
+
+    // Get the swapchain images
+    uint32_t swapchainImageCount;
+    vkGetSwapchainImagesKHR(mainDevice.logicalDevice, swapChain, &swapchainImageCount, nullptr);
+    vector<VkImage> images(swapchainImageCount);
+    vkGetSwapchainImagesKHR(mainDevice.logicalDevice, swapChain, &swapchainImageCount, images.data());
+    for (VkImage image : images) // We are using handles, not values
+    {
+
+        SwapchainImage swapchainImage {};
+        swapchainImage.image = image;
+        // Create image view
+        swapchainImage.imageView = createImageView(image, swapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+        swapchainImages.push_back(swapchainImage);
+
+    }
+
 }
-
-
-
 
 
 VkSurfaceFormatKHR VulkanRenderer::chooseBestSurfaceFormat(const vector<VkSurfaceFormatKHR>& formats)
 {
 
-    // We will use RGBA 32bits normalized and SRGG non linear colorspace
+    // We will use RGBA 32bits normalized and SRGB non linear colorspace
     if (formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
     {
 
@@ -608,16 +629,58 @@ VkExtent2D VulkanRenderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& surf
         VkExtent2D newExtent {};
         newExtent.width = static_cast<uint32_t>(width);
         newExtent.height = static_cast<uint32_t>(height);
-        // Sarface also defines max and min, so make sure we are within boundaries
+        // Surface also defines max and min, so make sure we are within boundaries
         newExtent.width = std::max(surfaceCapabilities.minImageExtent.width,
-
         std::min(surfaceCapabilities.maxImageExtent.width, newExtent.width));
-        newExtent.height = std::max(surfaceCapabilities.minImageExtent.height,
 
+        newExtent.height = std::max(surfaceCapabilities.minImageExtent.height,
         std::min(surfaceCapabilities.maxImageExtent.height, newExtent.height));
 
         return newExtent;
 
     }
+
+}
+
+VkImageView VulkanRenderer::createImageView(VkImage image,
+VkFormat format, VkImageAspectFlags aspectFlags)
+
+{
+
+    VkImageViewCreateInfo viewCreateInfo {};
+    viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewCreateInfo.image = image;
+    // Other formats can be used for cubemaps etc.
+    viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    // Can be used for depth for instance
+    viewCreateInfo.format = format;
+    // Swizzle used to remap color values. Here we keep the same.
+    viewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    // Subresources allow the view to view only a part of an image
+    // Here we want to see the image under the aspect of colors
+    viewCreateInfo.subresourceRange.aspectMask = aspectFlags;
+    // Start mipmap level to view from
+    viewCreateInfo.subresourceRange.baseMipLevel = 0;
+    // Number of mipmap level to view
+    viewCreateInfo.subresourceRange.levelCount = 0;
+    // Start array level to view from
+    viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    // Number of array levels to view
+    viewCreateInfo.subresourceRange.layerCount = 0;
+    // Create image view
+    VkImageView imageView;
+    VkResult result = vkCreateImageView(mainDevice.logicalDevice,
+
+    &viewCreateInfo, nullptr, &imageView);
+
+    if (result != VK_SUCCESS)
+    {
+
+        throw std::runtime_error("Could not create the image view.");
+    }
+    return imageView;
 
 }

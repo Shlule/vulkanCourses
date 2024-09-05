@@ -79,6 +79,13 @@ private:
     VkPresentModeKHR chooseBestPresentationMode(const vector<VkPresentModeKHR>& presentationModes);
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& surfaceCapabilities);
     void createSwapChain();
+
+    VkFormat swapchainImageFormat;
+    VkExtent2D swapchainExtent;
+
+    std::vector<SwapchainImage> swapchainImages;
+
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     
     
-};
+};  
