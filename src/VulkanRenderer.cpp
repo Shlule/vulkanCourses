@@ -22,6 +22,7 @@ int VulkanRenderer::init(GLFWwindow* windowP)
         createLogicalDevice();
         createSwapChain();
 
+
     }
     catch (const std::runtime_error& e)
     {
@@ -642,8 +643,7 @@ VkExtent2D VulkanRenderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& surf
 
 }
 
-VkImageView VulkanRenderer::createImageView(VkImage image,
-VkFormat format, VkImageAspectFlags aspectFlags)
+VkImageView VulkanRenderer::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
 
 {
 
@@ -672,9 +672,7 @@ VkFormat format, VkImageAspectFlags aspectFlags)
     viewCreateInfo.subresourceRange.layerCount = 0;
     // Create image view
     VkImageView imageView;
-    VkResult result = vkCreateImageView(mainDevice.logicalDevice,
-
-    &viewCreateInfo, nullptr, &imageView);
+    VkResult result = vkCreateImageView(mainDevice.logicalDevice, &viewCreateInfo, nullptr, &imageView);
 
     if (result != VK_SUCCESS)
     {
