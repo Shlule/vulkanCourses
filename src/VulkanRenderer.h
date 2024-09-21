@@ -86,6 +86,11 @@ private:
     std::vector<SwapchainImage> swapchainImages;
 
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+
+    void createGraphicsPipeline();
+    VkShaderModule createShaderModule(const vector<char>& code);
+
+    VkPipelineLayout pipelineLayout;
     
     
 };  

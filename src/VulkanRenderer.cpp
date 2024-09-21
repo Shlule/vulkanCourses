@@ -21,6 +21,7 @@ int VulkanRenderer::init(GLFWwindow* windowP)
         pickPhysicalDevice();
         createLogicalDevice();
         createSwapChain();
+        createGraphicsPipeline();
 
 
     }
@@ -682,3 +683,167 @@ VkImageView VulkanRenderer::createImageView(VkImage image, VkFormat format, VkIm
     return imageView;
 
 }
+
+void VulkanRenderer::createGraphicsPipeline(){
+    // Read shader code and format it through a shader module
+    auto vertexShaderCode = readShaderFile("shaders/vert.spv");
+    auto fragmentShaderCode = readShaderFile("shaders/frag.spv");
+    VkShaderModule vertexShaderModule = createShaderModule(vertexShaderCode);
+    VkShaderModule fragmentShaderModule = createShaderModule(fragmentShaderCode);
+
+    // -- SHADER STAGE CREATION INFO --
+    // Vertex stage creation info
+    VkPipelineShaderStageCreateInfo vertexShaderCreateInfo{};
+    //Used to know which shader
+    vertexShaderCreateInfo = VkShaderStageFlagBits::eVertex;
+    vertexShaderCreateInfo.module = vertexShaderModule;
+    // Pointer to the start function in the shader
+    vertexShaderCreateInfo.pName = "main";
+    // Fragment stage creation info
+    VkPipelineShaderStageCreateInfo fragmentShaderCreateInfo{};
+    fragmentShaderCreateInfo.stage = VkShaderStageFlagBits::eFragment;
+    fragmentShaderCreateInfo.module = fragmentShaderModule;
+    fragmentShaderCreateInfo.pName = "main";
+    // Graphics pipeline requires an array of shader create info
+    VkPipelineShaderStageCreateInfo shaderStages[] {vertexShaderCreateInfo,fragmentShaderCreateInfo };
+
+    // Create pipeline
+
+    // -- VERTEX INPUT STAGE --
+    //TODO: put in vertex description when resource created
+    VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo{};
+    vertexInputCreateInfo.vertexBindingDescriptionCount = 0;
+    //List of vertex binding desc. (data spacing, stride...)
+    vertexInputCreateInfo.pVertexBindingDescriptions = nullptr;
+    vertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
+    //List of vertex attribute desc.(date format and where to bind to/from)
+    vertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;
+
+    // -- INPUT ASSEMBLY --
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo{};
+    //how to assemble vertices
+    inputAssemblyCreateInfo.topology = VkPrimitiveTopology::eTriangleList;
+    //When you want ro restart a primitive e.g. with a strip
+    inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
+
+    // --VIEWPORT AND SCISSOR --
+    // create a viewport info struct 
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)swapchainExtent.width;
+    viewport.height = (float)swapchainExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    //create a scissor info struct, everything outside id cut
+    VkRect2D scissor{};
+    scissor.offset = VkOffset2D {0,0};
+    scissor.extent = swapchainExtent;
+    VkPipelineViewportStateCreateInfo viewportStateCreateInfo{};
+    viewportStateCreateInfo.viewportCount = 1;
+    viewportStateCreateInfo.pViewports = &viewport;
+    viewportStateCreateInfo.scissorCount = 1;
+    viewportStateCreateInfo.pScissors = &scissor;
+
+    // -- DYNAMIC STAGE -- 
+    // this will be alterable, so you don't have to create am entire pipeline when you want to
+    // parameters. We won't use this feature, this is an example.
+    /*
+    std::vector<VkDynamicState> dynamicStateEnables;
+    //Viewport can be resized in the command buffer
+    //with vkCmdSetViewport(commandBuffer,0,1,&newViewport);
+    dynamicStateEnables.push_back(VkDynamicState::eViewport);
+    //scissor can ve resized in the command buffer
+    //with VkCmdSetScissor(commandBuffer,0,1,&newScissor);
+    dynamicStateEnables.push_back(VkDynamicState::eScissor);
+    */
+
+    // -- RASTERIZER -- 
+    VkPipelineRasterizationStateCreateInfo rasterizerCreateInfo{};
+    //Treat elements beyond the far plane like being on he far place,
+    // need a GPU device features
+    rasterizerCreateInfo.depthClampEnable = VK_FALSE;
+    //whether to discard data and skip rasterizer. When you want 
+    // a pipeline without frame buffer.
+    rasterizerCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+    // how to handle filling points between vertices. here, considers things inside
+    // the polygon as a fragment. VK_POLYGON_MODE_LINE will consider inside 
+    // polygones being empty ( no fragment). May require a device features.
+    rasterizerCreateInfo.lineWidth = VkPolygonMode::eFill;
+    // How thick should line ve when drawn
+    rasterizerCreateInfo.cullMode  = VkCullModeFlagBits::eBack;
+    // Winding to know the frint face of a polygon
+    rasterizerCreateInfo.frontFace = VkFrontFace::eClockwise;
+    //Whether to add a depth offset to fragments. Good for stopping
+    ///"shadow acne" in shadow mapping. Os set, need ro set 3 other vaSlues.
+    rasterizerCreateInfo.depthBiasEnable = VK_FALSE;
+
+    // -- MULTISAMPLING -- 
+    // not for textures, only for edges
+    VkPipelineMultisampleStateCreateInfo multisamplingCreateInfo{};
+    // enable multisample shading or not 
+    multisamplingCreateInfo.sampleShadingEnable = VK_FALSE;
+    // number of samples to use per fragment
+    multisamplingCreateInfo.rasterizationSamples = VkSampleCountFlagBits::e1;
+
+    // -- BLENDING --
+    // how to blend a new color being written to the fragment, with the old value
+    VkPipelineColorBlendStateCreateInfo colorBlendingCreateInfo{};
+    // alternative to usual blending calculation
+    colorBlendingCreateInfo.logicOpEnable = VK_FALSE;
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask = VkColorComponentFlagBits::eR |
+    VkColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |
+    VkColorComponentFlagBits::eA;
+    colorBlendAttachment.blendEnable = VK_TRUE;
+    // Blending equation:
+    // (srcColorBlendFactor * new color) colorBlendOp (dstColorBlendFactor * old color)
+    colorBlendAttachment.srcColorBlendFactor = VkBlendFactor::eSrcAlpha;
+    colorBlendAttachment.dstColorBlendFactor = VkBlendFactor::eOneMinusSrcAlpha;
+    colorBlendAttachment.colorBlendOp = VkBlendOp::eAdd;
+    // Replace the old alpha with the new one: (1 * new alpha) + (0 * old alpha)
+    colorBlendAttachment.srcAlphaBlendFactor = VkBlendFactor::eOne;
+    colorBlendAttachment.dstAlphaBlendFactor = VkBlendFactor::eZero;
+    colorBlendAttachment.alphaBlendOp = VkBlendOp::eAdd;
+
+    colorBlendingCreateInfo.attachmentCount = 1;
+    colorBlendingCreateInfo.pAttachments = &colorBlendAttachment;
+
+    // -- PIPELINE LAYOUT --
+    // TODO: apply future descriptorset layout
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
+    pipelineLayoutCreateInfo.setLayoutCount = 0;
+    pipelineLayoutCreateInfo.pSetLayouts = nullptr;
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+    pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+    // Create pipeline layout
+    pipelineLayout = mainDevice.logicalDevice.createPipelineLayout(pipelineLayoutCreateInfo);
+
+    // -- DEPTH STENCIL TESTING --
+    // TODO: Set up depth stencil testing
+
+    // -- PASSES --
+    // Passes are composed of a sequence of subpasses that can pass data from one to another
+
+    // Destroy shader modules
+
+
+    
+    // Destroy shader modules
+    mainDevice.logicalDevice.destroyShaderModule(fragmentShaderModule);
+    mainDevice.logicalDevice.destroyShaderModule(vertexShaderModule);
+    }
+
+
+VkShaderModule VulkanRenderer::createShaderModule(const vector<char>& code){
+    VkShaderModuleCreateInfo shaderModuleCreateInfo{};
+    shaderModuleCreateInfo.codeSize = code.size();
+    // Conversion between pointer types with reinterpret_cast
+
+    shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    VkShaderModule shaderModule =
+    mainDevice.logicalDevice.createShaderModule(shaderModuleCreateInfo);
+    return shaderModule;
+}
+
