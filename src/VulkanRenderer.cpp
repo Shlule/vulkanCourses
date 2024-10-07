@@ -246,7 +246,7 @@ void VulkanRenderer::createLogicalDevice(){
     QueueFamilyIndices indices = getQueueFamilies(mainDevice.physicalDevice);
 
     //Vector for queue creation information and set for family indices
-    //A set will only keep one indice if theuy are the same.
+    //A set will only keep one index if they are the same.
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<int> queueFamilyIndices = {indices.graphicsFamily, indices.presentationFamily };
 
@@ -695,13 +695,15 @@ void VulkanRenderer::createGraphicsPipeline(){
     // Vertex stage creation info
     VkPipelineShaderStageCreateInfo vertexShaderCreateInfo{};
     //Used to know which shader
-    vertexShaderCreateInfo = VkShaderStageFlagBits::eVertex;
+    vertexShaderCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertexShaderCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
     vertexShaderCreateInfo.module = vertexShaderModule;
     // Pointer to the start function in the shader
     vertexShaderCreateInfo.pName = "main";
     // Fragment stage creation info
     VkPipelineShaderStageCreateInfo fragmentShaderCreateInfo{};
-    fragmentShaderCreateInfo.stage = VkShaderStageFlagBits::eFragment;
+    fragmentShaderCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragmentShaderCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
     fragmentShaderCreateInfo.module = fragmentShaderModule;
     fragmentShaderCreateInfo.pName = "main";
     // Graphics pipeline requires an array of shader create info
@@ -712,6 +714,7 @@ void VulkanRenderer::createGraphicsPipeline(){
     // -- VERTEX INPUT STAGE --
     //TODO: put in vertex description when resource created
     VkPipelineVertexInputStateCreateInfo vertexInputCreateInfo{};
+    vertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputCreateInfo.vertexBindingDescriptionCount = 0;
     //List of vertex binding desc. (data spacing, stride...)
     vertexInputCreateInfo.pVertexBindingDescriptions = nullptr;
@@ -722,7 +725,8 @@ void VulkanRenderer::createGraphicsPipeline(){
     // -- INPUT ASSEMBLY --
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo{};
     //how to assemble vertices
-    inputAssemblyCreateInfo.topology = VkPrimitiveTopology::eTriangleList;
+    inputAssemblyCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssemblyCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     //When you want ro restart a primitive e.g. with a strip
     inputAssemblyCreateInfo.primitiveRestartEnable = VK_FALSE;
 
@@ -740,7 +744,9 @@ void VulkanRenderer::createGraphicsPipeline(){
     VkRect2D scissor{};
     scissor.offset = VkOffset2D {0,0};
     scissor.extent = swapchainExtent;
+
     VkPipelineViewportStateCreateInfo viewportStateCreateInfo{};
+    viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportStateCreateInfo.viewportCount = 1;
     viewportStateCreateInfo.pViewports = &viewport;
     viewportStateCreateInfo.scissorCount = 1;
@@ -761,6 +767,7 @@ void VulkanRenderer::createGraphicsPipeline(){
 
     // -- RASTERIZER -- 
     VkPipelineRasterizationStateCreateInfo rasterizerCreateInfo{};
+    rasterizerCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     //Treat elements beyond the far plane like being on he far place,
     // need a GPU device features
     rasterizerCreateInfo.depthClampEnable = VK_FALSE;
@@ -770,11 +777,11 @@ void VulkanRenderer::createGraphicsPipeline(){
     // how to handle filling points between vertices. here, considers things inside
     // the polygon as a fragment. VK_POLYGON_MODE_LINE will consider inside 
     // polygones being empty ( no fragment). May require a device features.
-    rasterizerCreateInfo.lineWidth = VkPolygonMode::eFill;
+    rasterizerCreateInfo.lineWidth = 1.0f;
     // How thick should line ve when drawn
-    rasterizerCreateInfo.cullMode  = VkCullModeFlagBits::eBack;
-    // Winding to know the frint face of a polygon
-    rasterizerCreateInfo.frontFace = VkFrontFace::eClockwise;
+    rasterizerCreateInfo.cullMode  = VK_CULL_MODE_BACK_BIT;
+    // Winding to know the front face of a polygon
+    rasterizerCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
     //Whether to add a depth offset to fragments. Good for stopping
     ///"shadow acne" in shadow mapping. Os set, need ro set 3 other vaSlues.
     rasterizerCreateInfo.depthBiasEnable = VK_FALSE;
@@ -782,10 +789,11 @@ void VulkanRenderer::createGraphicsPipeline(){
     // -- MULTISAMPLING -- 
     // not for textures, only for edges
     VkPipelineMultisampleStateCreateInfo multisamplingCreateInfo{};
+    multisamplingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     // enable multisample shading or not 
     multisamplingCreateInfo.sampleShadingEnable = VK_FALSE;
     // number of samples to use per fragment
-    multisamplingCreateInfo.rasterizationSamples = VkSampleCountFlagBits::e1;
+    multisamplingCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
     // -- BLENDING --
     // how to blend a new color being written to the fragment, with the old value
@@ -793,19 +801,17 @@ void VulkanRenderer::createGraphicsPipeline(){
     // alternative to usual blending calculation
     colorBlendingCreateInfo.logicOpEnable = VK_FALSE;
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VkColorComponentFlagBits::eR |
-    VkColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |
-    VkColorComponentFlagBits::eA;
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment.blendEnable = VK_TRUE;
     // Blending equation:
     // (srcColorBlendFactor * new color) colorBlendOp (dstColorBlendFactor * old color)
-    colorBlendAttachment.srcColorBlendFactor = VkBlendFactor::eSrcAlpha;
-    colorBlendAttachment.dstColorBlendFactor = VkBlendFactor::eOneMinusSrcAlpha;
-    colorBlendAttachment.colorBlendOp = VkBlendOp::eAdd;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
     // Replace the old alpha with the new one: (1 * new alpha) + (0 * old alpha)
-    colorBlendAttachment.srcAlphaBlendFactor = VkBlendFactor::eOne;
-    colorBlendAttachment.dstAlphaBlendFactor = VkBlendFactor::eZero;
-    colorBlendAttachment.alphaBlendOp = VkBlendOp::eAdd;
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
     colorBlendingCreateInfo.attachmentCount = 1;
     colorBlendingCreateInfo.pAttachments = &colorBlendAttachment;
@@ -838,12 +844,12 @@ void VulkanRenderer::createGraphicsPipeline(){
 
 VkShaderModule VulkanRenderer::createShaderModule(const vector<char>& code){
     VkShaderModuleCreateInfo shaderModuleCreateInfo{};
+    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     shaderModuleCreateInfo.codeSize = code.size();
     // Conversion between pointer types with reinterpret_cast
 
     shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-    VkShaderModule shaderModule =
-    mainDevice.logicalDevice.createShaderModule(shaderModuleCreateInfo);
+    VkShaderModule shaderModule = mainDevice.logicalDevice.createShaderModule(shaderModuleCreateInfo);
     return shaderModule;
 }
 
